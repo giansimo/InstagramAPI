@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from time import sleep
 
+from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import *
 from selenium.webdriver.common.by import *
 from selenium.webdriver.common.keys import Keys
@@ -99,7 +100,8 @@ def getCurrentIp(config, chrome_options, seleniumwire_options, logger):
 
     optionsSilent = copy.deepcopy(chrome_options)
     optionsSilent.add_argument("--headless")
-    driver = webdriver.Chrome(executable_path=pathDriver, options=optionsSilent,
+    service = Service(executable_path=pathDriver)
+    driver = webdriver.Chrome(service=service, options=optionsSilent,
                               seleniumwire_options=copy.deepcopy(seleniumwire_options)
                               )
     status = "OK"
@@ -167,8 +169,8 @@ def startCreationRoutine(account, logger):
     currentIPAddress, status = getCurrentIp(config, chrome_options, seleniumwire_options, logger)
 
     statusError = False
-
-    driver = webdriver.Chrome(executable_path=pathDriver, options=chrome_options,
+    service = Service(executable_path=pathDriver)
+    driver = webdriver.Chrome(service=service, options=chrome_options,
                               seleniumwire_options=copy.deepcopy(seleniumwire_options))
 
     logger.info("Creation account")

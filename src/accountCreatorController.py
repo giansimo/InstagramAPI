@@ -48,7 +48,17 @@ def createAccount():
 
 
 if __name__ == "__main__":
+    fullname = "fullnameTest"
+    password = "passwordTest12345"
+    username = "usernameTest15213141"
+    proxy = "84.46.248.122:8008:alice:cool"
+    userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36 RuxitSynthetic/1.0 v6285345330506406824 t4896080028745171261 ath1fb31b7a altpriv cvcv=2 cexpw=1 smf=0"
+
+    account = Account(fullname, username, password, str(uuid.uuid4()), proxy, userAgent=userAgent)
+    startCreationRoutine(account, logger)
+    """
     host = "0.0.0.0"
     port = 8000
     logger.info("Serving on:" + host + ":" + str(port))
     serve(app, host=host, port=port)
+    """
