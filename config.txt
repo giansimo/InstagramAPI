@@ -1,0 +1,102 @@
+{
+    "config": {
+        "accountsToCreate": 10,
+        "maxWaitingSecureCode": 160,
+        "usernamesToCreate": 100,
+        "algorithmsToUsed": "1,2,3",
+        "accountToCreateForEachIPAddress": 1,
+        "waitingTimeAfterRotatingProxyError": 1,
+        "accountCreatedErrorForProxyRotation": 1,
+        "ipAddressCounterForSession": 1,
+        "proxyRotationWaitingMinute": 2,
+        "veryShortWait": 3,
+        "shortWait": 5,
+        "mediumWait": 10,
+        "longWait": 15,
+        "veryLongWait": 25
+    },
+
+    "utils": {
+        "getIpAddress": "https://api.myip.com"
+    },
+
+    "smsActivate": {
+        "apiKey": "0c6Acce5c1d60ff25b31cAe8ccf9e106",
+        "countryId": 15,
+        "service": "ig",
+        "cancelStatus": 8,
+        "resendMessageStatus": 3,
+        "useSpecificNumber": "False",
+        "activationId": "975571538",
+        "number": "447424159700"
+    },
+    "proxyConfig": {
+        "getProxyUrlEndPoint": "https://thesocialproxy.com/wp-json/lmfwc/v2/licenses/customer/user-licenses/?consumer_key={CONSUMER_KEY}&consumer_secret={CONSUMER_SECRET}",
+        "rotationIntervalProxyEndPoint": "https://thesocialproxy.com/wp-json/lmfwc/v2/licenses/rotation-interval/{BASE64_ENCODED_LICENSE_STRING}/?consumer_key={CONSUMER_KEY}&consumer_secret={CONSUMER_SECRET}",
+        "proxyLogEndPoint": "https://thesocialproxy.com/wp-json/lmfwc/v2/licenses/proxy-logs/{BASE64_ENCODED_LICENSE_STRING}/?consumer_key={CONSUMER_KEY}&consumer_secret={CONSUMER_SECRET}",
+        "consumerKey": "ck_d0311e2bc0ec52a76faaae235e5a5357bda2bac1",
+        "consumerSecret": "cs_d6137d9eabeb4ac8b195608674981b57df8bb44e",
+        "licenseKey": "london1.thesocialproxy.com:10000@016j8z7qtlrng5u4:tiegkrq9cojpy4fd",
+	"proxyInfo": "78.46.100.233:42789:ciuquet:FHCyNPCHaR",
+        "rotateProxyEndPoint": "https://proxy-seller.com/api/proxy/reboot?token=538faec3-5e36-4453-9d79-5eba0d59e5e4",
+        "rebootInterval": "10"
+    },
+    "path": {
+        "driver": "../driver/",
+        "input": "../input/",
+        "output": "../output/",
+        "log": "../log/Session"
+    },
+
+    "driverVersion": {
+        "main": "chromedriver.exe"
+    },
+
+    "files": {
+        "fullname" : "fullname.txt",
+        "username": "username.txt",
+        "password": "password.txt",
+        "userAgents": "userAgents.txt",
+        "session": "session{date}.txt",
+        "data": "data.csv",
+        "dataUsed": "dataUsed.csv"
+    },
+    "findElement":{
+        "xpath": {
+            "cookie": "//*[text()='Allow All Cookies' or text()='Allow all cookies' or text()='Allow essential and optional cookies']",
+            "cookieAfterLogin" : "//*[text()='Allow All Cookies' or text()='Allow all cookies']",
+            "notifications": "//button[text()='Not Now']",
+            "register": {
+                "next": "//*[text()='Next' or text()='Sign Up']"
+            },
+            "birthday": {
+                "monthSelect": "//select[contains(@title, 'Month')]",
+                "monthValue": "//select[contains(@title, 'Month')]/option[{month}]",
+                "daySelect": "//select[contains(@title, 'Day')]",
+                "dayValue": "//select[contains(@title, 'Day')]/option[{day}]",
+                "yearSelect": "//select[contains(@title, 'Year')]",
+                "yearValue": "//select[contains(@title, 'Year')]/option[{year}]",
+                "next": "//*[text()='Next']"
+            },
+            "secureCode": {
+                "notValidLabel": "/html/body/div[1]/section/main/div/div/div[1]/div/div/div/div[2]/p",
+                "requestAnotherCode": "/html/body/div[1]/section/main/div/div/div[1]/div[1]/div/div/div[3]/button[2]"
+            },
+            "login": {
+                "button": "//*[text()='Log In' or text()='Log in']"
+            }
+        },
+
+        "name":{
+            "emailOrPhone": "emailOrPhone",
+            "password": "password",
+            "username": "username",
+            "fullName": "fullName",
+            "phoneSignupConfirmErrorAlert": "phoneSignupConfirmErrorAlert"
+        },
+
+        "id":{
+            "ssfErrorAlert": "ssfErrorAlert"
+        }
+    }
+}
