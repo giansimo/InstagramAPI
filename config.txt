@@ -13,11 +13,32 @@
         "shortWait": 5,
         "mediumWait": 10,
         "longWait": 15,
-        "veryLongWait": 25
+        "veryLongWait": 25,
+
+        "accountsToAnalyze": 1,
+        "accountsToFollow": 10,
+        "timesScrollingDown": 5,
+        "minPercentageAccounts": 80,
+        "maxPercentageAccounts": 90,
+        "loadImage": false,
+        "useCustomProxy": true,
+        "headlessMode": false,
+        "onlyScrollingMouseAction": true,
+        "maxFailFollowing": 3,
+        "maxFailRotation": 3,
+        "reloadToVerifyLike": false
     },
 
     "utils": {
         "getIpAddress": "https://api.myip.com"
+    },
+
+    "url": {
+        "igBasePath": "https://www.instagram.com/"
+    },
+
+    "api": {
+        "updateClient": "http://localhost:8080/accountCreator/"
     },
 
     "smsActivate": {
@@ -64,7 +85,7 @@
     "findElement":{
         "xpath": {
             "cookie": "//*[text()='Allow All Cookies' or text()='Allow all cookies' or text()='Allow essential and optional cookies']",
-            "cookieAfterLogin" : "//*[text()='Allow All Cookies' or text()='Allow all cookies']",
+            "cookieAfterLogin" : "//*[text()='Allow All Cookies' or text()='Allow all cookies' or text()='Allow essential and optional cookies']",
             "notifications": "//button[text()='Not Now']",
             "register": {
                 "next": "//*[text()='Next' or text()='Sign Up']"
@@ -79,6 +100,7 @@
                 "next": "//*[text()='Next']"
             },
             "secureCode": {
+                "invalidCode": "//span[contains(text(), 'valid')]",
                 "notValidLabel": "/html/body/div[1]/section/main/div/div/div[1]/div/div/div/div[2]/p",
                 "requestAnotherCode": "/html/body/div[1]/section/main/div/div/div[1]/div[1]/div/div/div[3]/button[2]"
             },

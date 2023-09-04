@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from time import sleep
 
+import requests
 from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import *
 from selenium.webdriver.common.by import *
@@ -14,8 +15,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from seleniumwire import webdriver
 from smsactivate.api import SMSActivateAPI
-from src.Account import Account
 
+from src.Account import Account
+from src.utils import *
 
 
 def strToBase64(strInput):
@@ -26,11 +28,6 @@ def getProxy(proxy):
     proxyIP = proxyData[0] + ":" + proxyData[1]
     credentials = proxyData[2] + ":" + proxyData[3]
     return proxyIP, credentials
-
-def initConfig(path):
-    with open(path, 'r') as file:
-        data = file.read().replace('\n', '')
-        return json.loads(data)
 
 
 def getNumber(sa, config, verification):
@@ -140,8 +137,8 @@ def saveAccountToFile(account, config, logger):
         file.write(line)
 
 
-def startCreationRoutine(account, logger):
 
+def startCreationRoutine(account, logger):
     config = initConfig("../config.txt")
 
     ## waiting config
@@ -150,7 +147,7 @@ def startCreationRoutine(account, logger):
     mediumWait = config["config"]["mediumWait"]
     longWait = config["config"]["longWait"]
 
-    pathDriver = config["path"]["driver"] + "chromedriver.exe"
+    pathDriver = config["path"]["driver"] + config["driverVersion"]["main"]
 
     seleniumwire_options = initOptions(account.proxy)
 
@@ -168,10 +165,11 @@ def startCreationRoutine(account, logger):
 
     currentIPAddress, status = getCurrentIp(config, chrome_options, seleniumwire_options, logger)
 
-    statusError = False
+    mailMode = True if account.mail else False
     service = Service(executable_path=pathDriver)
     driver = webdriver.Chrome(service=service, options=chrome_options,
-                              seleniumwire_options=copy.deepcopy(seleniumwire_options))
+                              seleniumwire_options=copy.deepcopy(seleniumwire_options)
+                              )
 
     logger.info("Creation account")
     logger.info("User agent: " + account.userAgent)
@@ -181,51 +179,71 @@ def startCreationRoutine(account, logger):
         "{2}", account.fullname))
     logger.info("Proxy IP Address: " + currentIPAddress)
 
+    updateClient(config, account)
+
     try:
         driver.get("https://www.instagram.com/accounts/emailsignup/")
     except TimeoutException:
         driver.quit()
+        updateClient(config, account, "Timeout driver")
+        return
     except WebDriverException as e:
+        updateClient(config, account, "Driver exception")
         logger.error(str(e))
-
+        return
     try:
         cookie = WebDriverWait(driver, 15).until(EC.element_to_be_clickable(("xpath",
-                                                                            config["findElement"]["xpath"][
-                                                                                "cookie"]))).click()
+                                                                             config["findElement"]["xpath"][
+                                                                                 "cookie"]))).click()
         time.sleep(shortWait)
     except:
         logger.error("Cannot find cookie banner, check XPATH in config")
-        #driver.quit()
-        #exit(1)
+        # driver.quit()
+        # exit(1)
 
     sa = SMSActivateAPI(config["smsActivate"]["apiKey"])
 
-    # Fill the email value
-    try:
-        emailOrPhone = driver.find_element(By.NAME, config["findElement"]["name"]['emailOrPhone'])
+    # Manage phone or mail registration
+    if not mailMode:
+        # Fill the phone value
+        try:
+            emailOrPhone = driver.find_element(By.NAME, config["findElement"]["name"]['emailOrPhone'])
 
-        if (config["smsActivate"]["useSpecificNumber"] != "True"):
-            logger.info("Requesting number...current balance is: " + sa.getBalance()['balance'])
-            number = getNumber(sa, config, True)
-            try:
-                logger.info("Using number: " + str(number["phone"]))
-                account.cellPhone = str(number["activation_id"]) + ":" + str(number["phone"])
-                emailOrPhone.send_keys("+" + str(number["phone"]))
-            except KeyError:
-                logger.error("Number not received. " + number["message"])
-                driver.quit()
-                exit(1)
-        else:
-            logger.info("Skipping activation number")
-            account.cellPhone = config["smsActivate"]["activationId"] + ":" + config["smsActivate"]["number"]
-            logger.info("Number info used: " + str(account.cellPhone))
+            if (config["smsActivate"]["useSpecificNumber"] != "True"):
+                logger.info("Requesting number...current balance is: " + sa.getBalance()['balance'])
+                number = getNumber(sa, config, True)
+                try:
+                    logger.info("Using number: " + str(number["phone"]))
+                    account.cellPhone = str(number["activation_id"]) + ":" + str(number["phone"])
+                    emailOrPhone.send_keys("+" + str(number["phone"]))
+                except KeyError:
+                    logger.error("Number not received. " + number["message"])
+                    updateClient(config, account, "Number not received! " + number["message"])
+                    driver.quit()
+                    exit(1)
+            else:
+                logger.info("Skipping activation number")
+                account.cellPhone = config["smsActivate"]["activationId"] + ":" + config["smsActivate"]["number"]
+                logger.info("Number info used: " + str(account.cellPhone))
 
-            emailOrPhone.send_keys(config["smsActivate"]["number"])
-    except NoSuchElementException:
-        logger.error("Cannot find emailOrPhone field, check name in config or use XPATH")
-        destroy(sa,account, config, logger)
-        statusError = True
-        driver.quit()
+                emailOrPhone.send_keys(config["smsActivate"]["number"])
+        except NoSuchElementException:
+            logger.error("Cannot find emailOrPhone field, check name in config or use XPATH")
+            updateClient(config, account, "EmailPhone field not found! Account not created")
+            destroy(sa, account, config, logger)
+            driver.quit()
+            return
+    else:
+        # Fill the mail value
+        try:
+            emailOrPhone = driver.find_element(By.NAME, config["findElement"]["name"]['emailOrPhone'])
+            emailOrPhone.send_keys(account.mail)
+        except NoSuchElementException:
+            logger.error("Cannot find emailOrPhone field, check name in config or use XPATH")
+            updateClient(config, account, "EmailPhone field not found! Account not created")
+            destroy(sa, account, config, logger)
+            driver.quit()
+            return
 
     sleep(veryShortWait)
 
@@ -237,10 +255,11 @@ def startCreationRoutine(account, logger):
             sleep(veryShortWait)
     except NoSuchElementException:
         logger.error("Cannot find fullName field, check name in config or use XPATH")
-        destroy(sa, account, config, logger)
-        statusError = True
-        driver.quit()
+        updateClient(config, account, "Fullname field not found! Account not created")
 
+        destroy(sa, account, config, logger)
+        driver.quit()
+        return
 
     try:
         # Fill username value
@@ -250,9 +269,10 @@ def startCreationRoutine(account, logger):
             sleep(veryShortWait)
     except NoSuchElementException:
         logger.error("Cannot find username field, check name in config or use XPATH")
+        updateClient(config, account, "Username field not found! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
-
+        return
 
     try:
         # Fill password value
@@ -262,8 +282,10 @@ def startCreationRoutine(account, logger):
             sleep(veryShortWait)
     except NoSuchElementException:
         logger.error("Cannot find password field, check name in config or use XPATH")
+        updateClient(config, account, "Password field not found! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
+        return
 
     if (fullname_field is None) or (username_field is None) or (password_field is None):
         destroy(sa, account, config, logger)
@@ -280,25 +302,30 @@ def startCreationRoutine(account, logger):
         sleep(veryShortWait)
     except TimeoutException:
         logger.error("Cannot find register button, check XPATH in config file")
+        updateClient(config, account, "An error occured during creation routine! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
+        return
 
 
     except NoSuchElementException:
         logger.error("Cannot find register button, check XPATH in config file")
+        updateClient(config, account, "An error occured during creation routine! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
+        return
 
     sleep(shortWait)
-
 
     # try get ssfError alert
     try:
         ssfErrorAlert = driver.find_element(By.ID, config["findElement"]["id"]["ssfErrorAlert"])
         if ssfErrorAlert is not None:
             logger.warning("Username or number already used, skipping creation")
+            updateClient(config, account, "Username/number/mail already used")
             destroy(sa, account, config, logger)
             driver.quit()
+            return
     except:
         pass
 
@@ -307,7 +334,8 @@ def startCreationRoutine(account, logger):
         monthSelect = driver.find_element(By.XPATH, config["findElement"]["xpath"]["birthday"]["monthSelect"])
         if monthSelect is not None:
             monthSelect.click()
-            month = str(config["findElement"]["xpath"]["birthday"]["monthValue"]).replace("{month}", str(random.randint(1, 12)))
+            month = str(config["findElement"]["xpath"]["birthday"]["monthValue"]).replace("{month}",
+                                                                                          str(random.randint(1, 12)))
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, month))).click()
             sleep(veryShortWait)
     except ElementClickInterceptedException:
@@ -316,33 +344,40 @@ def startCreationRoutine(account, logger):
 
     except NoSuchElementException:
         logger.error("Cannot find month select or value, check XPATH in config file")
+        updateClient(config, account, "An error occured during creation routine! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
-
+        return
 
     try:
         daySelect = driver.find_element(By.XPATH, config["findElement"]["xpath"]["birthday"]["daySelect"])
         if daySelect is not None:
             daySelect.click()
-            day = str(config["findElement"]["xpath"]["birthday"]["dayValue"]).replace("{day}", str(random.randint(1, 28)))
-            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, day ))).click()
+            day = str(config["findElement"]["xpath"]["birthday"]["dayValue"]).replace("{day}",
+                                                                                      str(random.randint(1, 28)))
+            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, day))).click()
             sleep(veryShortWait)
     except NoSuchElementException:
         logger.error("Cannot find day select or value, check XPATH in config file")
+        updateClient(config, account, "An error occured during creation routine! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
+        return
 
     try:
         yearSelect = driver.find_element(By.XPATH, config["findElement"]["xpath"]["birthday"]["yearSelect"])
         if yearSelect is not None:
             yearSelect.click()
-            year = str(config["findElement"]["xpath"]["birthday"]["yearValue"]).replace("{year}", str(random.randint(15, 40)))
+            year = str(config["findElement"]["xpath"]["birthday"]["yearValue"]).replace("{year}",
+                                                                                        str(random.randint(15, 40)))
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, year))).click()
             sleep(veryShortWait)
     except NoSuchElementException:
         logger.error("Cannot find year select or value, check XPATH in config file")
+        updateClient(config, account, "An error occured during creation routine! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
+        return
 
     try:
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable(
@@ -350,34 +385,71 @@ def startCreationRoutine(account, logger):
         time.sleep(veryShortWait)
     except:
         logger.error("Cannot find next button in birthday section, check XPATH in config file")
+        updateClient(config, account, "An error occured during creation routine! Account not created")
         destroy(sa, account, config, logger)
         driver.quit()
+        return
 
+    if not mailMode:
 
-    # secure code
-    if (config["smsActivate"]["useSpecificNumber"] != "True"):
-        secureCode = getSecureCode(sa, number["activation_id"], config, logger)
+        # secure code
+        if (config["smsActivate"]["useSpecificNumber"] != "True"):
+            secureCode = getSecureCode(sa, number["activation_id"], config, logger)
+        else:
+            secureCode = getSecureCode(sa, config["smsActivate"]["activationId"], config, logger)
+
+        if (secureCode is None):
+            logger.error("Cannot read secure code for the given number. Request deleting number")
+            updateClient(config, account, "An error occured during validation number! Account not created")
+            destroy(sa, account, config, logger)
+            driver.quit()
+            return
+
+        time.sleep(shortWait)
+
+        try:
+            confirmationCode = driver.find_element(By.NAME, 'confirmationCode')
+            if confirmationCode is not None:
+                confirmationCode.send_keys(secureCode, Keys.ENTER)
+
+            time.sleep(longWait)
+
+        except NoSuchElementException:
+            logger.error("Cannot find confirmation code field, check name in config file")
+            updateClient(config, account, "An error occured during creation routine! Account not created")
+            destroy(sa, account, config, logger)
+            driver.quit()
+            return
+
     else:
-        secureCode = getSecureCode(sa, config["smsActivate"]["activationId"], config, logger)
+        secureCode = "12412312"
+        try:
+            mailConfirmationCode = driver.find_element(By.NAME, 'email_confirmation_code')
+            if mailConfirmationCode is not None:
+                mailConfirmationCode.send_keys(secureCode, Keys.ENTER)
 
-    if (secureCode is None):
-        logger.error("Cannot read secure code for the given number. Request deleting number")
-        destroy(sa, account, config, logger)
-        driver.quit()
+            time.sleep(longWait)
 
-    time.sleep(shortWait)
+        except NoSuchElementException:
+            logger.error("Cannot find mail confirmation code field, check name in config file")
+            updateClient(config, account, "An error occured during creation routine! Account not created")
+            destroy(sa, account, config, logger)
+            driver.quit()
+            return
+
+    """ Check error code message"""
 
     try:
-        confirmationCode = driver.find_element(By.NAME, 'confirmationCode')
-        if confirmationCode is not None:
-            confirmationCode.send_keys(secureCode, Keys.ENTER)
-
-        time.sleep(longWait)
-
+        invalidCode = driver.find_element(By.XPATH, config["findElement"]["xpath"]["secureCode"]["invalidCode"])
+        if invalidCode is not None:
+            logger.error("Secure code received is not valid")
+            updateClient(config, account, "Secure code received is not valid! Account not created")
+            destroy(sa, account, config, logger)
+            driver.quit()
+            return
     except NoSuchElementException:
-        logger.error("Cannot find confirmation code field, check name in config file")
-        destroy(sa, account, config, logger)
-        driver.quit()
+        # Everything is ok if not invalid code label has been found
+        pass
 
     """ Check if phoneSignupConfirmErrorAlert message, if yes --> try login """
 
@@ -397,6 +469,7 @@ def startCreationRoutine(account, logger):
         except:
             logger.error("Cannot find username input, check XPATH in config")
             driver.quit()
+            return
 
         try:
             password = driver.find_element(By.NAME, config["findElement"]["name"]["password"])
@@ -407,6 +480,7 @@ def startCreationRoutine(account, logger):
         except:
             logger.error("Cannot find username input, check XPATH in config")
             driver.quit()
+            return
 
         try:
             loginBtn = driver.find_element(By.XPATH, config["findElement"]["xpath"]["login"]["button"])
@@ -414,13 +488,15 @@ def startCreationRoutine(account, logger):
                 loginBtn.click()
         except:
             driver.quit()
+            return
         time.sleep(mediumWait)
     except:
         pass
 
     try:
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH,
-                                                                    config["findElement"]["xpath"]["cookieAfterLogin"]))).click()
+                                                                    config["findElement"]["xpath"][
+                                                                        "cookieAfterLogin"]))).click()
     except:
         logger.warning("Cannot find cookie after login, check XPATH in config file")
 
@@ -430,6 +506,7 @@ def startCreationRoutine(account, logger):
         sleep(longWait)
     except:
         logger.warning("Instagram take too long to give a response")
+        updateClient(config, account, "Instagram took too long to give a response! Account not created")
 
     try:
         # accepting the notifications.
@@ -443,12 +520,12 @@ def startCreationRoutine(account, logger):
 
     sleep(mediumWait)
 
-    # Account creation completed...reset variables and increase counter
-    statusError = False
-
+    # Account creation completed...
     logger.info("Getting cookies for current account")
     logger.info(json.dumps(driver.get_cookies()))
     account.cookies = json.dumps(driver.get_cookies())
+
+    updateClient(config, account)
 
     saveAccountToFile(account, config, logger)
 

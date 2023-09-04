@@ -2,14 +2,14 @@ import json
 import uuid
 import logging
 import threading
-from datetime import datetime
-from flask import Flask, request
-from waitress import serve
+import random
+from flask import request, Blueprint, jsonify
 from logging.handlers import TimedRotatingFileHandler
-
-
 from src.Account import Account
 from src.accountCreatorService import startCreationRoutine
+from src.utils import *
+
+accountCreatorController = Blueprint('accountCreatorController', __name__, url_prefix='/accountCreator')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,43 +22,42 @@ handler.suffix = "%Y%m%d"
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-
-app = Flask(__name__)
-
-@app.route('/createAccount', methods=["POST"])
-def createAccount():
-    username = request.json['username']
-    fullname = request.json['fullname']
-    password = request.json['password']
-    proxy = request.json['proxy']
-    userAgent = request.json['userAgent']
-
-    account = Account(fullname, username, password, str(uuid.uuid4()), proxy, userAgent=userAgent)
-
-    thread = threading.Thread(target=startCreationRoutine, args=(account, logger))
-    thread.start()
-    response = app.response_class(
-        response=json.dumps({
-            "message": "Start managing request with id: " + account.sessionId,
-            "sessionId": account.sessionId}),
-        status=200,
-        mimetype='application/json'
-    )
-    return response
+config = initConfig("../config.txt")
+userAgents = initUserAgents(config)
 
 
-if __name__ == "__main__":
-    fullname = "fullnameTest"
-    password = "passwordTest12345"
-    username = "usernameTest15213141"
-    proxy = "84.46.248.122:8008:alice:cool"
-    userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36 RuxitSynthetic/1.0 v6285345330506406824 t4896080028745171261 ath1fb31b7a altpriv cvcv=2 cexpw=1 smf=0"
+@accountCreatorController.route('/create', methods=["POST"])
+def create():
 
-    account = Account(fullname, username, password, str(uuid.uuid4()), proxy, userAgent=userAgent)
-    startCreationRoutine(account, logger)
-    """
-    host = "0.0.0.0"
-    port = 8000
-    logger.info("Serving on:" + host + ":" + str(port))
-    serve(app, host=host, port=port)
-    """
+    if 'username' not in request.json \
+            or 'fullname' not in  request.json \
+            or 'password' not in request.json \
+            or 'proxy' not in request.json:
+        response = jsonify({
+            "message" : "Be sure to insert all the params correctly"
+        })
+        return response, 400
+    else:
+        account = Account(request.json)
+        account.sessionId = str(uuid.uuid4())
+        account.userAgent = request.json['userAgent'] if 'userAgent' in request.json else random.choice(userAgents).replace("\n", "")
+        account.mail = request.json['mail'] if 'mail' in request.json else None
+
+        thread = threading.Thread(target=startCreationRoutine, args=(account, logger))
+        thread.start()
+        response = jsonify({
+                "message": "Start managing request with id: " + account.sessionId,
+                "sessionId": account.sessionId
+        })
+        return response, 200
+
+@accountCreatorController.route('/updateClient', methods=["POST"])
+def updateClient():
+    response = jsonify({
+            "success": request.json["success"],
+            "error": request.json["error"],
+            "data": request.json["data"]
+        })
+
+    return response, 200
+

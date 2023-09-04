@@ -1,12 +1,13 @@
+import json
+
 class Account:
 
-    def __init__(self, fullname, username, password, sessionId = None, proxy = None, cellPhone = None, cookies = None, userAgent = None):
-        self.sessionId = sessionId
-        self.fullname = fullname
-        self.username = username
-        self.password = password
-        self.proxy = proxy
-        self.cellPhone = cellPhone
-        self.cookies = cookies
-        self.userAgent = userAgent
+    def __init__(self, d=None):
+        if d is not None:
+            for key, value in d.items():
+                setattr(self, key, value)
+
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__,
+                          sort_keys=True, indent=4)
 
