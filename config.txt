@@ -105,7 +105,7 @@
                 "requestAnotherCode": "/html/body/div[1]/section/main/div/div/div[1]/div[1]/div/div/div[3]/button[2]"
             },
             "login": {
-                "button": "//*[text()='Log In' or text()='Log in']"
+                "button": "//*[text()='Log In' or text()='Sign Up' or text()='Log in' or text()='Sign up' or text()='Log in to another account']"
             }
         },
 

@@ -94,7 +94,7 @@ def manageCookiesLogin(config, driver, account):
     # try to check if login worked
     try:
         loginInSignUp = driver.find_element(
-            By.XPATH, config["findElement"]["xpath"]["loginInSignUp"]
+            By.XPATH, config["findElement"]["xpath"]["login"]["button"]
         )
         if loginInSignUp is not None:
             logger.info("Login by cookies was not successful, skip the current profile")
